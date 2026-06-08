@@ -1,4 +1,3 @@
-// Product Data
 const productsData = [
   {
     id: 's1',
@@ -66,17 +65,18 @@ const productsData = [
   }
 ];
 
-// Cart State
 let cart = [];
 let currentModalItem = null;
 
-// Initialization
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', initProducts);
+
+function initProducts() {
+  if (!document.getElementById('sectionProducts')) return;
+
   renderProducts();
   updateCartUI();
-});
+}
 
-// Utility: Format Currency
 function formatRupiah(number) {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -85,164 +85,151 @@ function formatRupiah(number) {
   }).format(number);
 }
 
-// Render Products
 function renderProducts() {
-  const gridSayuran = document.getElementById('gridSayuran');
-  const gridSembako = document.getElementById('gridSembako');
-  const gridMinuman = document.getElementById('gridMinuman');
-  
-  gridSayuran.innerHTML = '';
-  gridSembako.innerHTML = '';
-  gridMinuman.innerHTML = '';
+  const grids = {
+    sayuran: document.getElementById('gridSayuran'),
+    sembako: document.getElementById('gridSembako'),
+    minuman: document.getElementById('gridMinuman')
+  };
+
+  Object.values(grids).forEach(grid => {
+    if (grid) grid.innerHTML = '';
+  });
 
   productsData.forEach(product => {
-    const cardHtml = `
-      <div class="product-card">
-        <div class="card-img-wrapper" onclick="openModal('${product.id}')">
-          <img src="${product.image}" alt="${product.name}" class="card-img" />
-        </div>
-        <div class="card-body">
-          <h3 class="card-title">${product.name}</h3>
-          <p class="card-desc">${product.desc}</p>
-          <div class="card-footer">
-            <span class="card-price">${formatRupiah(product.price)}</span>
-            <button class="btn-add" onclick="quickAdd('${product.id}')">+</button>
-          </div>
-        </div>
-      </div>
-    `;
+    const grid = grids[product.category];
+    if (!grid) return;
 
-    if (product.category === 'sayuran') gridSayuran.insertAdjacentHTML('beforeend', cardHtml);
-    if (product.category === 'sembako') gridSembako.insertAdjacentHTML('beforeend', cardHtml);
-    if (product.category === 'minuman') gridMinuman.insertAdjacentHTML('beforeend', cardHtml);
+    grid.insertAdjacentHTML('beforeend', createProductCard(product));
   });
 }
 
-// Category Filter
+function createProductCard(product) {
+  return `
+    <div class="product-card">
+      <div class="card-img-wrapper" onclick="openModal('${product.id}')">
+        <img src="${product.image}" alt="${product.name}" class="card-img" />
+      </div>
+      <div class="card-body">
+        <h3 class="card-title">${product.name}</h3>
+        <p class="card-desc">${product.desc}</p>
+        <div class="card-footer">
+          <span class="card-price">${formatRupiah(product.price)}</span>
+          <button class="btn-add" onclick="quickAdd('${product.id}')">+</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function filterCategory(cat) {
-  // Update buttons
   document.querySelectorAll('.cat-btn').forEach(btn => {
     btn.classList.remove('active');
-    if(btn.innerText.toLowerCase().includes(cat === 'semua' ? 'semua' : cat)) {
+    if (btn.innerText.toLowerCase().includes(cat === 'semua' ? 'semua' : cat)) {
       btn.classList.add('active');
     }
   });
 
-  // Show/Hide sections
-  document.querySelectorAll('.products-section').forEach(sec => {
-    if (cat === 'semua') {
-      sec.style.display = 'block';
-    } else {
-      if (sec.dataset.category === cat) {
-        sec.style.display = 'block';
-      } else {
-        sec.style.display = 'none';
-      }
-    }
+  document.querySelectorAll('.products-section').forEach(section => {
+    section.style.display = cat === 'semua' || section.dataset.category === cat ? 'block' : 'none';
   });
 }
 
-// Quick Add to Cart
 function quickAdd(id) {
-  const product = productsData.find(p => p.id === id);
+  const product = findProduct(id);
   if (!product) return;
-  
+
   addToCart(product, 1);
   showToast(`${product.name} ditambahkan ke keranjang`);
 }
 
-// Add to Cart Logic
 function addToCart(product, qty) {
   const existingItem = cart.find(item => item.id === product.id);
-  
+
   if (existingItem) {
     existingItem.qty += qty;
   } else {
     cart.push({ ...product, qty });
   }
-  
+
   updateCartUI();
 }
 
-// Update Cart UI
 function updateCartUI() {
-  const cartBadge = document.getElementById('cartBadge');
   const cartItems = document.getElementById('cartItems');
   const cartFooter = document.getElementById('cartFooter');
   const cartTotal = document.getElementById('cartTotal');
-  
-  let totalQty = 0;
-  let totalPrice = 0;
-  
+  if (!cartItems || !cartFooter || !cartTotal) return;
+
   cartItems.innerHTML = '';
-  
+
   if (cart.length === 0) {
-    cartItems.innerHTML = `<div class="empty-state"><p>Keranjang masih kosong</p></div>`;
+    cartItems.innerHTML = '<div class="empty-state"><p>Keranjang masih kosong</p></div>';
     cartFooter.style.display = 'none';
-    cartBadge.textContent = '0';
     return;
   }
-  
+
+  let totalPrice = 0;
   cartFooter.style.display = 'block';
-  
+
   cart.forEach(item => {
-    totalQty += item.qty;
-    totalPrice += (item.price * item.qty);
-    
-    cartItems.insertAdjacentHTML('beforeend', `
-      <div class="cart-item">
-        <img src="${item.image}" alt="${item.name}" class="cart-item-img" />
-        <div class="cart-item-info">
-          <h4 class="cart-item-title">${item.name}</h4>
-          <p class="cart-item-price">${formatRupiah(item.price)}</p>
-          <div class="cart-item-qty">
-            <button onclick="updateCartItemQty('${item.id}', -1)">−</button>
-            <span>${item.qty}</span>
-            <button onclick="updateCartItemQty('${item.id}', 1)">+</button>
-          </div>
-        </div>
-      </div>
-    `);
+    totalPrice += item.price * item.qty;
+    cartItems.insertAdjacentHTML('beforeend', createCartItem(item));
   });
-  
-  cartBadge.textContent = totalQty;
+
   cartTotal.textContent = formatRupiah(totalPrice);
 }
 
-// Update Qty in Cart
-function updateCartItemQty(id, delta) {
-  const itemIndex = cart.findIndex(i => i.id === id);
-  if (itemIndex > -1) {
-    cart[itemIndex].qty += delta;
-    if (cart[itemIndex].qty <= 0) {
-      cart.splice(itemIndex, 1);
-    }
-    updateCartUI();
-  }
+function createCartItem(item) {
+  return `
+    <div class="cart-item">
+      <img src="${item.image}" alt="${item.name}" class="cart-item-img" />
+      <div class="cart-item-info">
+        <h4 class="cart-item-title">${item.name}</h4>
+        <p class="cart-item-price">${formatRupiah(item.price)}</p>
+        <div class="cart-item-qty">
+          <button onclick="updateCartItemQty('${item.id}', -1)">&minus;</button>
+          <span>${item.qty}</span>
+          <button onclick="updateCartItemQty('${item.id}', 1)">+</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-// Toggle Cart Sidebar
+function updateCartItemQty(id, delta) {
+  const itemIndex = cart.findIndex(item => item.id === id);
+  if (itemIndex === -1) return;
+
+  cart[itemIndex].qty += delta;
+  if (cart[itemIndex].qty <= 0) {
+    cart.splice(itemIndex, 1);
+  }
+
+  updateCartUI();
+}
+
 function toggleCart() {
   const sidebar = document.getElementById('cartSidebar');
   const overlay = document.getElementById('cartOverlay');
-  
+  if (!sidebar || !overlay) return;
+
   sidebar.classList.toggle('open');
   overlay.classList.toggle('show');
 }
 
-// Modal Logic
 function openModal(id) {
-  const product = productsData.find(p => p.id === id);
+  const product = findProduct(id);
   if (!product) return;
-  
+
   currentModalItem = { ...product, tempQty: 1 };
-  
+
   document.getElementById('modalImg').src = product.image;
   document.getElementById('modalName').textContent = product.name;
   document.getElementById('modalDesc').textContent = product.desc;
   document.getElementById('modalPrice').textContent = formatRupiah(product.price);
-  document.getElementById('modalQty').textContent = 1;
-  
+  document.getElementById('modalQty').textContent = '1';
+
   document.getElementById('modalOverlay').classList.add('show');
   document.getElementById('itemModal').classList.add('show');
 }
@@ -255,50 +242,54 @@ function closeModal() {
 
 function changeModalQty(delta) {
   if (!currentModalItem) return;
+
   currentModalItem.tempQty += delta;
   if (currentModalItem.tempQty < 1) currentModalItem.tempQty = 1;
+
   document.getElementById('modalQty').textContent = currentModalItem.tempQty;
 }
 
 function addFromModal() {
   if (!currentModalItem) return;
+
   addToCart(currentModalItem, currentModalItem.tempQty);
   showToast(`${currentModalItem.tempQty}x ${currentModalItem.name} ditambahkan`);
   closeModal();
 }
 
-// Toast Notification
-function showToast(msg) {
+function showToast(message) {
   const toast = document.getElementById('toast');
-  toast.textContent = msg;
+  if (!toast) return;
+
+  toast.textContent = message;
   toast.classList.add('show');
-  
+
   setTimeout(() => {
     toast.classList.remove('show');
   }, 3000);
 }
 
-// Checkout
 function checkout() {
   if (cart.length === 0) return;
-  
+
   const note = document.getElementById('orderNote').value;
   let message = 'Halo TOKO MUJUR, saya ingin memesan:\n\n';
   let total = 0;
-  
+
   cart.forEach((item, index) => {
     message += `${index + 1}. ${item.name} (${item.qty}x) - ${formatRupiah(item.price * item.qty)}\n`;
-    total += (item.price * item.qty);
+    total += item.price * item.qty;
   });
-  
+
   message += `\n*Total: ${formatRupiah(total)}*`;
-  
+
   if (note) {
     message += `\n\nCatatan: ${note}`;
   }
-  
-  const waNumber = '6282194311111'; // Dari footer
-  const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
-  
-  window.open(waUrl, '_blank');
+
+  window.open(`https://wa.me/6282194311111?text=${encodeURIComponent(message)}`, '_blank');
+}
+
+function findProduct(id) {
+  return productsData.find(product => product.id === id);
 }
